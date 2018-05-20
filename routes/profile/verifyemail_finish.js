@@ -2,9 +2,9 @@ var express = require('express');
 var router = express.Router();
 var {verify_token} = require('../../controllers/tokenController');
 var {findById, activateUser} = require('../../controllers/userController');
+var { login_required } = require('../../utils/authValidator');
 
-router.get('/', function(req, res, next) {
-    partials = req.app.get('partials');
+router.get('/',login_required, function(req, res, next) {
     token = req.query.token;
     if(!token){
       req.flash('alertMessage', 'Make sure you came here by following reset link sent to your email.');
@@ -37,7 +37,6 @@ router.get('/', function(req, res, next) {
             }			        
             res.render('profile/verifyemail_finish',
             { title: 'Email verified'
-            ,partials: partials
             ,alertMessage: 'Your email is verified successfully.'
             });
           });

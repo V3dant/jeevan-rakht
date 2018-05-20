@@ -8,11 +8,12 @@ var { findByEmail, findById, loginUser, updatePassword } = require('../../contro
 var passExpression = '^(((?=.*[a-z])(?=.*[A-Z]))|((?=.*[a-z])(?=.*[0-9]))|((?=.*[A-Z])(?=.*[0-9])))(?=.{6,})';
 
 router.get('/', checkToken, function(req, res, next) {  
-  partials = req.app.get('partials');
     // If we found a token, find a matching user
     findById({ _id: req.tokenResult._userId }, function (err, user) {
 			if (err) {
-				return res.status(500).send({ "error": err.message }); 
+        let alertMessage = "DB Error:"+err.message;
+        req.flash('alertMessage', alertMessage);
+        res.redirect('/login');
 			}			        
       if (!user) {
           req.flash('alertMessage', 'We were unable to find a user for this token.');
@@ -21,24 +22,24 @@ router.get('/', checkToken, function(req, res, next) {
         }
         res.render('auth/forgot_finish', 
           { title: 'Reset Password'
-          ,partials: partials
           ,alertMessage: 'This reset link is valid for 1 hour only.'
           });
     });
 });
 
 router.post('/', checkToken, function(req, res, next) {
-  partials = req.app.get('partials');
   const password = validator.matches(req.body.password, passExpression);
   if(!password) {
-    res.render('auth/forgot_finish', {title: 'Reset Password', partials: partials, alertMessage: 'At least on capital letter is required in password.'});
+    res.render('auth/forgot_finish', {title: 'Reset Password', alertMessage: 'Password must contain one capital & one small letter with total six chars min.'});
   } else if(req.body.password !== req.body.verify) {
-    res.render('auth/forgot_finish', {title: 'Reset Password', partials: partials, alertMessage: 'Both passwords should match.'});
+    res.render('auth/forgot_finish', {title: 'Reset Password', alertMessage: 'Both passwords should match.'});
   } else if(req.tokenResult) {
         var id = req.tokenResult._userId;
         findById(id, function(err, result) {
           if(err) {
-            console.log('something went wrong on finding user from id.');
+            let alertMessage = "DB Error:"+err.message;
+            req.flash('alertMessage', alertMessage);
+            res.redirect('/login');
           } else if (!result) {
             req.flash('alertMessage', 'User does not exist.');
             res.redirect('/login');
@@ -49,15 +50,17 @@ router.post('/', checkToken, function(req, res, next) {
             }
             loginUser(userObj, function(err, loginResult) {
               if(err) {
-                return res.status(500).send({ "error": err.message }); 
+                let alertMessage = "DB Error:"+err.message;
+                res.render('auth/forgot_finish', {title: 'Reset Password', alertMessage: alertMessage});
               } else if (loginResult === 1) {
                 console.log('new password matched previous password.');            
-                res.render('auth/forgot_finish', {title: 'Reset Password', partials: partials, alertMessage: 'Your new password should not match old password.'});
+                res.render('auth/forgot_finish', {title: 'Reset Password', alertMessage: 'Your new password should not match old password.'});
               } else if (loginResult === 0) {
                 console.log('new password didn\'t match previous password.');
                 updatePassword(userObj, function(err, result) {
                   if (err) {
-                    return res.status(500).send({ "error": err.message }); 
+                    let alertMessage = "DB Error:"+err.message;
+                    res.render('auth/forgot_finish', {title: 'Reset Password', alertMessage: alertMessage});    
                   } else if (result) {
                     req.flash('successMessage', 'Password changed successfully.');
                     res.redirect('/login');
@@ -85,13 +88,15 @@ function checkToken(req, res, next) {
   }
   verify_token(token,function (err, tokenResult) {
     if (err) {
-      return res.status(500).send({ "error": err.message }); 
+      let alertMessage = "DB Error:"+err.message;
+      req.flash('alertMessage', alertMessage);
+      res.redirect('/login');
     }else if(tokenResult) {
       req.tokenResult = tokenResult;
       next();
       return;
     } else if(!tokenResult) {
-      req.flash('alertMessage', 'We were unable to find a valid token. Your token may have expired.');
+      req.flash('alertMessage', 'We were unable to find a valid token. Your token might have expired.');
       res.redirect('/login');		
       return;	
     }
